@@ -1,0 +1,7 @@
+# Packages required for this project
+fastapi
+uvicorn
+sqlalchemy
+
+# Package for PostgreSQL
+psycopg2-binary
