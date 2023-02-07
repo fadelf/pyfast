@@ -7,10 +7,8 @@
 python -m venv ./venv/
 
 * Activate the virtual environment:
-Windows
-.\venv\Scripts\Activate.bat
-Linux
-source venv/bin/activate
+ * Windows : .\venv\Scripts\Activate.bat
+ * Linux : source venv/bin/activate
 
 * Install the required library for this project:
 pip install -r requirements.txt
