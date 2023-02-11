@@ -8,3 +8,9 @@ class User(BaseModel):
     email: str
     username: str
     is_active: bool = True
+
+class UserData(BaseModel):
+    full_name: Optional[str]
+    email: Optional[str]
+    username: Optional[str]
+    is_active: Optional[bool] = True
