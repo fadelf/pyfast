@@ -6,3 +6,6 @@ pydantic
 
 # Package for PostgreSQL
 psycopg2-binary
+
+# Package for using external APIs.
+requests

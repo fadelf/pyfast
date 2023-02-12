@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Header
+import requests
 
 from uuid import UUID
 from database import Base, SessionLocal, engine
@@ -20,6 +21,10 @@ tags_metadata = [
     {
         "name": "test",
         "description": "This API is for testing to ensure the app runs correctly."
+    },
+    {
+        "name": "weather",
+        "description": "This API retrieves weather data using https://openweathermap.org. Please create a personal API key on the site first."
     }
 ]
 
@@ -64,7 +69,7 @@ async def delete_user_example(user_id: UUID):
     )
 
 @myapp.patch("/api/user-example/{user_id}", tags=["user-example"])
-async def update_user_example(user_id: UUID, userData: UserData):
+async def update_user_example(user_id: UUID, userData: UserBase):
     for user in userList:
         if user.id == user_id:
             if userData.email is not None:
@@ -76,7 +81,7 @@ async def update_user_example(user_id: UUID, userData: UserData):
     )
 
 @myapp.post("/user/add", tags=["user"])
-async def add_user(user: UserBase, db: Session = Depends(get_db)):
+async def add_user(user: UserData, db: Session = Depends(get_db)):
     user_model = base_to_user(user)
     db.add(user_model)
     db.commit()
@@ -87,3 +92,39 @@ async def add_user(user: UserBase, db: Session = Depends(get_db)):
 async def list_user(db: Session = Depends(get_db)):
     users = db.query(UserModel).all()
     return users
+
+@myapp.patch("/user/update", tags=["user"])
+async def update_user(user_id: int, user: UserData, db: Session = Depends(get_db)):
+    user_model = db.query(UserModel).filter(UserModel.id == user_id).first()
+    if not user_model:
+        raise HTTPException(status_code=400, detail=f"User with ID {user_id} not found!")
+    if user.age:
+        user_model.age = user.age
+    if user.email:
+        user_model.email = user.email
+    if user.is_active is not None:
+        user_model.is_active = user.is_active
+    db.commit()
+    db.refresh(user_model)
+    return user_model
+    
+@myapp.delete("/user/delete", tags=["user"])
+async def delete_user(user_id: int, db: Session = Depends(get_db)):
+    user_model = db.query(UserModel).filter(UserModel.id == user_id).first()
+    if not user_model:
+        raise HTTPException(status_code=400, detail=f"User with ID {user_id} not found!")
+    db.delete(user_model)
+    db.commit()
+    return {"message": f"User with ID {user_id} successfully deleted"}
+
+@myapp.get("/weather", tags=["weather"])
+async def weather(city: str, api_key: str = Header(None)):
+    if api_key is None:
+        raise HTTPException(status_code=400, detail="API Key is required")
+    
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}"
+    response = requests.get(url)
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json().get("message"))
+
+    return response.json()

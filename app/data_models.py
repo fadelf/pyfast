@@ -10,13 +10,13 @@ class User(BaseModel):
     username: str
     is_active: bool = True
 
-class UserData(BaseModel):
+class UserBase(BaseModel):
     full_name: Optional[str]
     email: Optional[str]
     username: Optional[str]
     is_active: Optional[bool] = True
 
-class UserBase(BaseModel):
+class UserData(BaseModel):
     username: str
     email: str
     age: int
@@ -34,7 +34,7 @@ userList: List[User] = [
         id=uuid4(),
         full_name="Alsace",
         username="alsace",
-        email="alasace@gmail.com",
+        email="alsace@gmail.com",
         is_active=True      
     )
 ]
