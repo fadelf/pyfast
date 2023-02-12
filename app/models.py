@@ -1,16 +1,10 @@
-from pydantic import BaseModel
-from typing import Optional
-from uuid import UUID, uuid4
+from sqlalchemy import Column, Integer, String, Boolean
+from database import Base
 
-class User(BaseModel):
-    id: Optional[UUID] = uuid4()
-    full_name: str
-    email: str
-    username: str
-    is_active: bool = True
-
-class UserData(BaseModel):
-    full_name: Optional[str]
-    email: Optional[str]
-    username: Optional[str]
-    is_active: Optional[bool] = True
+class UserModel(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    username = Column(String)
+    email = Column(String)
+    age = Column(Integer)
+    is_active = Column(Boolean)
