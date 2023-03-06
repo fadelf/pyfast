@@ -1,5 +1,7 @@
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header, UploadFile
 import requests
+import pandas as pd
+import json
 
 from uuid import UUID
 from database import Base, SessionLocal, engine
@@ -12,19 +14,23 @@ from converter import base_to_user
 tags_metadata = [
     {
         "name": "user",
-        "description": "This API is connected to the database. The data remains while the database is running."
+        "description": "These API is connected to the database. The data remains while the database is running."
     },
     {
         "name": "user-example",
-        "description": "This API is not connected to the database. The data will be reset every time the application is reloaded."
+        "description": "These API is not connected to the database. The data will be reset every time the application is reloaded."
     },
     {
         "name": "test",
-        "description": "This API is for testing to ensure the app runs correctly."
+        "description": "These API is for testing to ensure the app runs correctly."
     },
     {
         "name": "weather",
-        "description": "This API retrieves weather data using https://openweathermap.org. Please create a personal API key on the site first."
+        "description": "These API retrieves weather data using https://openweathermap.org. Please create a personal API key on the site first."
+    },
+    {
+        "name": "dataset",
+        "description": "These API accept CSV or another file for data processing"
     }
 ]
 
@@ -128,3 +134,13 @@ async def weather(city: str, api_key: str = Header(None)):
         raise HTTPException(status_code=response.status_code, detail=response.json().get("message"))
 
     return response.json()
+
+@myapp.post("/convert", tags=["dataset"])
+async def convert_csv(file: UploadFile):
+    data_frame = pd.read_csv(file.file)
+
+    json_data = json.loads(data_frame.to_json(orient="records"))
+
+    return {
+        "data": json_data
+    }
