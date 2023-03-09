@@ -5,6 +5,7 @@ sqlalchemy
 pydantic
 python-multipart
 pandas
+matplotlib
 
 # Package for PostgreSQL
 psycopg2-binary

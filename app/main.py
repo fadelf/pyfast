@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, Header, UploadFile
+from fastapi import FastAPI, HTTPException, Depends, Header, UploadFile, Response
 import requests
 import pandas as pd
 import json
@@ -10,6 +10,10 @@ from sqlalchemy.orm import Session
 from data_models import User, UserData, UserBase, userList
 from models import UserModel
 from converter import base_to_user
+
+import matplotlib.pyplot as plt
+from io import BytesIO
+import base64
 
 tags_metadata = [
     {
@@ -144,3 +148,24 @@ async def convert_csv(file: UploadFile):
     return {
         "data": json_data
     }
+
+@myapp.get("/plot", tags=["dataset"])
+async def plot():
+    x_values = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+    y_values = [12, 40, 29, 16, 25, 35, 45]
+
+    plt.plot(x_values, y_values)
+    plt.title("Sample Matplotlib")
+    plt.xlabel("Days")
+    plt.ylabel("Values")
+    
+    # Matplotlib to bytes
+    buffer = BytesIO()
+    plt.savefig(buffer, format='png')
+    buffer.seek(0)
+    plot_data = buffer.getvalue()
+    
+    # Response as image
+    response = Response(content=plot_data, media_type="image/png")
+    
+    return response
