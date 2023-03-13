@@ -152,7 +152,7 @@ async def convert_csv(file: UploadFile):
 @myapp.get("/plot", tags=["dataset"])
 async def plot():
     x_values = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
-    y_values = [12, 40, 29, 16, 25, 35, 45]
+    y_values = [100, 125, 75, 175, 200, 100, 100]
 
     plt.plot(x_values, y_values)
     plt.title("Sample Matplotlib")
