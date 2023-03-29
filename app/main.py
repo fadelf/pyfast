@@ -22,7 +22,8 @@ tags_metadata = [
     },
     {
         "name": "user-example",
-        "description": "These API is not connected to the database. The data will be reset every time the application is reloaded."
+        "description": "These API is not connected to the database. The data will be reset every time the application "
+                       "is reloaded."
     },
     {
         "name": "test",
@@ -30,7 +31,8 @@ tags_metadata = [
     },
     {
         "name": "weather",
-        "description": "These API retrieves weather data using https://openweathermap.org. Please create a personal API key on the site first."
+        "description": "These API retrieves weather data using https://openweathermap.org. Please create a personal "
+                       "API key on the site first."
     },
     {
         "name": "dataset",
@@ -43,6 +45,7 @@ myapp = FastAPI(openapi_tags=tags_metadata)
 # create all tables if not exist
 Base.metadata.create_all(engine)
 
+
 def get_db():
     try:
         db = SessionLocal()
@@ -50,15 +53,18 @@ def get_db():
     finally:
         db.close()
 
+
 @myapp.get("/", tags=["test"])
 def welcome_page():
     return {
-        "message" : "Fast API Development Home Page"
+        "message": "Fast API Development Home Page"
     }
+
 
 @myapp.get("/api/user-example", tags=["user-example"])
 async def list_user_example():
     return userList
+
 
 @myapp.post("/api/user-example", tags=["user-example"])
 async def add_user_example(user: User):
@@ -66,6 +72,7 @@ async def add_user_example(user: User):
     return {
         "id": user.id
     }
+
 
 @myapp.delete("/api/user-example/{user_id}", tags=["user-example"])
 async def delete_user_example(user_id: UUID):
@@ -77,6 +84,7 @@ async def delete_user_example(user_id: UUID):
         status_code=404,
         detail=f"User with ID {user_id} not found!"
     )
+
 
 @myapp.patch("/api/user-example/{user_id}", tags=["user-example"])
 async def update_user_example(user_id: UUID, userData: UserBase):
@@ -90,6 +98,7 @@ async def update_user_example(user_id: UUID, userData: UserBase):
         detail=f"User with ID {user_id} not found!"
     )
 
+
 @myapp.post("/user/add", tags=["user"])
 async def add_user(user: UserData, db: Session = Depends(get_db)):
     user_model = base_to_user(user)
@@ -98,10 +107,12 @@ async def add_user(user: UserData, db: Session = Depends(get_db)):
     db.refresh(user_model)
     return user_model
 
+
 @myapp.get("/user/list", tags=["user"])
 async def list_user(db: Session = Depends(get_db)):
     users = db.query(UserModel).all()
     return users
+
 
 @myapp.patch("/user/update", tags=["user"])
 async def update_user(user_id: int, user: UserData, db: Session = Depends(get_db)):
@@ -117,7 +128,8 @@ async def update_user(user_id: int, user: UserData, db: Session = Depends(get_db
     db.commit()
     db.refresh(user_model)
     return user_model
-    
+
+
 @myapp.delete("/user/delete", tags=["user"])
 async def delete_user(user_id: int, db: Session = Depends(get_db)):
     user_model = db.query(UserModel).filter(UserModel.id == user_id).first()
@@ -127,17 +139,19 @@ async def delete_user(user_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": f"User with ID {user_id} successfully deleted"}
 
+
 @myapp.get("/weather", tags=["weather"])
 async def weather(city: str, api_key: str = Header(None)):
     if api_key is None:
         raise HTTPException(status_code=400, detail="API Key is required")
-    
+
     url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}"
     response = requests.get(url)
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail=response.json().get("message"))
 
     return response.json()
+
 
 @myapp.post("/convert", tags=["dataset"])
 async def convert_csv(file: UploadFile):
@@ -149,6 +163,7 @@ async def convert_csv(file: UploadFile):
         "data": json_data
     }
 
+
 @myapp.get("/plot", tags=["dataset"])
 async def plot():
     x_values = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
@@ -158,14 +173,14 @@ async def plot():
     plt.title("Sample Matplotlib")
     plt.xlabel("Days")
     plt.ylabel("Values")
-    
+
     # Matplotlib to bytes
     buffer = BytesIO()
     plt.savefig(buffer, format='png')
     buffer.seek(0)
     plot_data = buffer.getvalue()
-    
+
     # Response as image
     response = Response(content=plot_data, media_type="image/png")
-    
+
     return response

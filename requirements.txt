@@ -7,7 +7,7 @@ python-multipart
 pandas
 matplotlib
 
-# Package for PostgreSQL
+# Package for PostgresSQL
 psycopg2-binary
 
 # Package for using external APIs.
