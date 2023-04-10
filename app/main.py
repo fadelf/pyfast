@@ -3,54 +3,23 @@ import requests
 import pandas as pd
 import json
 
-from uuid import UUID
 from database import Base, SessionLocal, engine
 from sqlalchemy.orm import Session
 
-from data_models import User, UserData, UserBase, userList
-from models import UserModel
-from converter import base_to_user
+from models import UserModel, ProductModel
 
 import matplotlib.pyplot as plt
 from io import BytesIO
-import base64
 
 from auth import AuthHandler
-from schemas import AuthSchema
-
-tags_metadata = [
-    {
-        "name": "user",
-        "description": "These API is connected to the database. The data remains while the database is running."
-    },
-    {
-        "name": "user-example",
-        "description": "These API is not connected to the database. The data will be reset every time the application "
-                       "is reloaded."
-    },
-    {
-        "name": "test",
-        "description": "These API is for testing to ensure the app runs correctly."
-    },
-    {
-        "name": "weather",
-        "description": "These API retrieves weather data using https://openweathermap.org. Please create a personal "
-                       "API key on the site first."
-    },
-    {
-        "name": "dataset",
-        "description": "These API accept CSV or another file for data processing"
-    }
-]
+from schemas import UserRegister, UserLogin, ProductCreate, ProductUpdate
+from metadata import tags_metadata
 
 myapp = FastAPI(openapi_tags=tags_metadata)
 auth_handler = AuthHandler()
 
 # create all tables if not exist
 Base.metadata.create_all(engine)
-
-users = []
-
 
 def get_db():
     try:
@@ -60,29 +29,92 @@ def get_db():
         db.close()
 
 
-@myapp.post("/register", status_code=201)
-def register(auth_details: AuthSchema):
-    for x in users:
-        if x["username"] == auth_details.username:
-            raise HTTPException(status_code=400, detail="Username is taken")
-    hashed_password = auth_handler.get_password_hash(auth_details.password)
-    users.append({
-        "username": auth_details.username,
-        "password": hashed_password
-    })
-    return
+@myapp.post("/product/add", status_code=200, tags=["product"])
+async def create_product(product: ProductCreate, db: Session = Depends(get_db),
+                         username=Depends(auth_handler.auth_wrapper)):
+    product_model = ProductModel(
+        name=product.name,
+        category=product.category,
+        price=product.price,
+        is_active=product.is_active)
+    db.add(product_model)
+    db.commit()
+    db.refresh(product_model)
+    return {"status": "Success", "result": product_model}
 
 
-@myapp.post("/login")
-def login(auth_details: AuthSchema):
-    user = None
-    for x in users:
-        if x["username"] == auth_details.username:
-            user = x
-            break
-    if (user is None) or (not auth_handler.verify_password(auth_details.password, user["password"])):
-        raise HTTPException(status_code=401, detail="Invalid username and/or password")
-    token = auth_handler.encode_token(user["username"])
+@myapp.put("/products/update/{product_id}", status_code=200, tags=["product"])
+async def update_product(product_id: int, product: ProductUpdate, db: Session = Depends(get_db),
+                         username=Depends(auth_handler.auth_wrapper)):
+    # noinspection PyTypeChecker
+    product_model = db.query(ProductModel).filter(ProductModel.product_id == product_id).first()
+    if not product_model:
+        raise HTTPException(status_code=404, detail="Product not found")
+    if product.name:
+        product_model.name = product.name
+    if product.category:
+        product_model.category = product.category
+    if product.price:
+        product_model.price = product.price
+    if product.is_active is not None:
+        product_model.is_active = product.is_active
+    db.commit()
+    db.refresh(product_model)
+    return {"status": "Success", "result": product_model}
+
+
+@myapp.get("/product/get/{product_id}", status_code=200, tags=["product"])
+async def read_product(product_id: int, db: Session = Depends(get_db), username=Depends(auth_handler.auth_wrapper)):
+    # noinspection PyTypeChecker
+    product_model = db.query(ProductModel).filter(ProductModel.product_id == product_id).first()
+    if not product_model:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return {"status": "Success", "result": product_model}
+
+
+@myapp.delete("/product/delete/{product_id}", status_code=200, tags=["product"])
+async def delete_product(product_id: int, db: Session = Depends(get_db), username=Depends(auth_handler.auth_wrapper)):
+    # noinspection PyTypeChecker
+    product_model = db.query(ProductModel).filter(ProductModel.product_id == product_id).first()
+    if not product_model:
+        raise HTTPException(status_code=404, detail="Product not found")
+    db.delete(product_model)
+    db.commit()
+    return {"status": "Success", "result": f"Product {product_id} deleted by {username}"}
+
+
+@myapp.post("/register", status_code=200, tags=["user"])
+def register(user: UserRegister, db: Session = Depends(get_db)):
+    lowercase_email = user.email.lower()
+    # noinspection PyTypeChecker
+    user_check = db.query(UserModel).filter(UserModel.email == lowercase_email).first()
+    if user_check:
+        raise HTTPException(status_code=400, detail="User with same email already exist")
+
+    user_model = UserModel(
+        username=user.username,
+        email=user.email.lower(),
+        password=auth_handler.get_password_hash(user.password),
+        age=user.age,
+        is_active=user.is_active)
+    db.add(user_model)
+    db.commit()
+    db.refresh(user_model)
+    return {"status": "Success", "result": None}
+
+
+@myapp.post("/login", tags=["user"])
+def login(user: UserLogin, db: Session = Depends(get_db)):
+    lowercase_email = user.email.lower()
+    # noinspection PyTypeChecker
+    user_check = db.query(UserModel).filter(UserModel.email == lowercase_email).first()
+
+    if not user_check:
+        raise HTTPException(status_code=404, detail=f"User with email {lowercase_email} not found")
+
+    if not auth_handler.verify_password(user.password, user_check.password):
+        raise HTTPException(status_code=401, detail="Invalid password")
+    token = auth_handler.encode_token(user_check.email)
     return {
         "token": token
     }
@@ -93,99 +125,6 @@ def welcome_page():
     return {
         "message": "Fast API Development Home Page"
     }
-
-
-@myapp.get("/unprotected")
-def get_unprotected():
-    return {
-        "hello": "World"
-    }
-
-
-@myapp.get("/protected")
-def get_protected(username=Depends(auth_handler.auth_wrapper)):
-    return {
-        "name": username
-    }
-
-
-@myapp.get("/api/user-example", tags=["user-example"])
-async def list_user_example():
-    return userList
-
-
-@myapp.post("/api/user-example", tags=["user-example"])
-async def add_user_example(user: User):
-    userList.append(user)
-    return {
-        "id": user.id
-    }
-
-
-@myapp.delete("/api/user-example/{user_id}", tags=["user-example"])
-async def delete_user_example(user_id: UUID):
-    for user in userList:
-        if user.id == user_id:
-            userList.remove(user)
-            return f"Success delete user with ID {user_id}"
-    raise HTTPException(
-        status_code=404,
-        detail=f"User with ID {user_id} not found!"
-    )
-
-
-@myapp.patch("/api/user-example/{user_id}", tags=["user-example"])
-async def update_user_example(user_id: UUID, userData: UserBase):
-    for user in userList:
-        if user.id == user_id:
-            if userData.email is not None:
-                user.email = userData.email
-            return user
-    raise HTTPException(
-        status_code=404,
-        detail=f"User with ID {user_id} not found!"
-    )
-
-
-@myapp.post("/user/add", tags=["user"])
-async def add_user(user: UserData, db: Session = Depends(get_db)):
-    user_model = base_to_user(user)
-    db.add(user_model)
-    db.commit()
-    db.refresh(user_model)
-    return user_model
-
-
-@myapp.get("/user/list", tags=["user"])
-async def list_user(db: Session = Depends(get_db)):
-    users = db.query(UserModel).all()
-    return users
-
-
-@myapp.patch("/user/update", tags=["user"])
-async def update_user(user_id: int, user: UserData, db: Session = Depends(get_db)):
-    user_model = db.query(UserModel).filter(UserModel.id == user_id).first()
-    if not user_model:
-        raise HTTPException(status_code=400, detail=f"User with ID {user_id} not found!")
-    if user.age:
-        user_model.age = user.age
-    if user.email:
-        user_model.email = user.email
-    if user.is_active is not None:
-        user_model.is_active = user.is_active
-    db.commit()
-    db.refresh(user_model)
-    return user_model
-
-
-@myapp.delete("/user/delete", tags=["user"])
-async def delete_user(user_id: int, db: Session = Depends(get_db)):
-    user_model = db.query(UserModel).filter(UserModel.id == user_id).first()
-    if not user_model:
-        raise HTTPException(status_code=400, detail=f"User with ID {user_id} not found!")
-    db.delete(user_model)
-    db.commit()
-    return {"message": f"User with ID {user_id} successfully deleted"}
 
 
 @myapp.get("/weather", tags=["weather"])
