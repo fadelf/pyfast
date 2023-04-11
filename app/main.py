@@ -1,25 +1,28 @@
-from fastapi import FastAPI, HTTPException, Depends, Header, UploadFile, Response
-import requests
-import pandas as pd
 import json
-
-from database import Base, SessionLocal, engine
-from sqlalchemy.orm import Session
-
-from models import UserModel, ProductModel
-
-import matplotlib.pyplot as plt
 from io import BytesIO
 
+import matplotlib.pyplot as plt
+import pandas as pd
+import requests
+from fastapi import FastAPI, HTTPException, Depends, Header, UploadFile, Response, status, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from exception import CustomException
+
+from sqlalchemy.orm import Session
+
 from auth import AuthHandler
-from schemas import UserRegister, UserLogin, ProductCreate, ProductUpdate
+from database import Base, SessionLocal, engine
 from metadata import tags_metadata
+from models import UserModel, ProductModel
+from schemas import UserRegister, UserLogin, ProductCreate, ProductUpdate
 
 myapp = FastAPI(openapi_tags=tags_metadata)
 auth_handler = AuthHandler()
 
 # create all tables if not exist
 Base.metadata.create_all(engine)
+
 
 def get_db():
     try:
@@ -89,7 +92,7 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
     # noinspection PyTypeChecker
     user_check = db.query(UserModel).filter(UserModel.email == lowercase_email).first()
     if user_check:
-        raise HTTPException(status_code=400, detail="User with same email already exist")
+        raise CustomException("User with same email already exist")
 
     user_model = UserModel(
         username=user.username,
@@ -100,7 +103,12 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
     db.add(user_model)
     db.commit()
     db.refresh(user_model)
-    return {"status": "Success", "result": None}
+    response_data = {
+        "status_code": 200,
+        "message": "Success",
+        "result": None
+    }
+    return JSONResponse(content=response_data, status_code=200)
 
 
 @myapp.post("/login", tags=["user"])
@@ -110,14 +118,20 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     user_check = db.query(UserModel).filter(UserModel.email == lowercase_email).first()
 
     if not user_check:
-        raise HTTPException(status_code=404, detail=f"User with email {lowercase_email} not found")
+        raise CustomException("User not found!")
 
     if not auth_handler.verify_password(user.password, user_check.password):
-        raise HTTPException(status_code=401, detail="Invalid password")
+        raise CustomException("Invalid password")
     token = auth_handler.encode_token(user_check.email)
-    return {
+    result = {
         "token": token
     }
+    response_data = {
+        "status_code": 200,
+        "message": "Success",
+        "result": result
+    }
+    return JSONResponse(content=response_data, status_code=200)
 
 
 @myapp.get("/", tags=["test"])
@@ -171,3 +185,30 @@ async def plot():
     response = Response(content=plot_data, media_type="image/png")
 
     return response
+
+
+@myapp.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    error = "Validation error: " + ", ".join([f"{err['msg']}" for err in errors])
+
+    response_data = {
+        "status_code": status.HTTP_400_BAD_REQUEST,
+        "message": "Failed",
+        "result": {
+            "error": error
+        }
+    }
+    return JSONResponse(content=response_data, status_code=status.HTTP_400_BAD_REQUEST)
+
+
+@myapp.exception_handler(CustomException)
+async def custom_exception_handler(request, exc):
+    return JSONResponse(
+        content={
+            "status_code": exc.status_code,
+            "message": exc.message,
+            "result": exc.result,
+        },
+        status_code=exc.status_code,
+    )

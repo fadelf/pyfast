@@ -1,5 +1,6 @@
 from pydantic import BaseModel, validator
 from typing import Optional
+import email_validator
 
 
 class UserRegister(BaseModel):
@@ -9,15 +10,18 @@ class UserRegister(BaseModel):
     age: int
     is_active: bool = True
 
-
-class UserLogin(BaseModel):
-    email: str
-    password: str
-
     @validator('email')
     def email_must_not_be_empty(cls, email):
         if email.strip() == '':
             raise ValueError('Email must not be empty')
+        return email
+
+    @validator('email')
+    def email_must_be_valid(cls, email):
+        try:
+            email_validator.validate_email(email)
+        except email_validator.EmailNotValidError as e:
+            raise ValueError('Invalid email') from e
         return email
 
     @validator('password')
@@ -27,6 +31,11 @@ class UserLogin(BaseModel):
         if len(password) < 6:
             raise ValueError('Password must be at least 6 characters long')
         return password
+
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
 
 
 class ProductCreate(BaseModel):

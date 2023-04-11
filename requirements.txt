@@ -6,6 +6,7 @@ pydantic
 python-multipart
 pandas
 matplotlib
+email-validator
 
 # Package for PostgresSQL
 psycopg2-binary
