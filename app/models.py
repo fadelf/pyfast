@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, UniqueConstraint
+from sqlalchemy import Column, Integer, Float, String, Boolean, UniqueConstraint
 from database import Base
 
 
@@ -22,5 +22,5 @@ class ProductModel(Base):
     product_id: int = Column(Integer, primary_key=True, index=True, autoincrement=True, doc="The ID of the product.")
     name: str = Column(String, doc="The name of the product.")
     category: str = Column(String, doc="The category of the product.")
-    price: float = Column(String, doc="The price of the product.")
+    price: float = Column(Float, doc="The price of the product.")
     is_active: bool = Column(Boolean, default=True, doc="Whether the product is active or not.")

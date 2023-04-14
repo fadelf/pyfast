@@ -32,60 +32,6 @@ def get_db():
         db.close()
 
 
-@myapp.post("/product/add", status_code=200, tags=["product"])
-async def create_product(product: ProductCreate, db: Session = Depends(get_db),
-                         username=Depends(auth_handler.auth_wrapper)):
-    product_model = ProductModel(
-        name=product.name,
-        category=product.category,
-        price=product.price,
-        is_active=product.is_active)
-    db.add(product_model)
-    db.commit()
-    db.refresh(product_model)
-    return {"status": "Success", "result": product_model}
-
-
-@myapp.put("/products/update/{product_id}", status_code=200, tags=["product"])
-async def update_product(product_id: int, product: ProductUpdate, db: Session = Depends(get_db),
-                         username=Depends(auth_handler.auth_wrapper)):
-    # noinspection PyTypeChecker
-    product_model = db.query(ProductModel).filter(ProductModel.product_id == product_id).first()
-    if not product_model:
-        raise HTTPException(status_code=404, detail="Product not found")
-    if product.name:
-        product_model.name = product.name
-    if product.category:
-        product_model.category = product.category
-    if product.price:
-        product_model.price = product.price
-    if product.is_active is not None:
-        product_model.is_active = product.is_active
-    db.commit()
-    db.refresh(product_model)
-    return {"status": "Success", "result": product_model}
-
-
-@myapp.get("/product/get/{product_id}", status_code=200, tags=["product"])
-async def read_product(product_id: int, db: Session = Depends(get_db), username=Depends(auth_handler.auth_wrapper)):
-    # noinspection PyTypeChecker
-    product_model = db.query(ProductModel).filter(ProductModel.product_id == product_id).first()
-    if not product_model:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return {"status": "Success", "result": product_model}
-
-
-@myapp.delete("/product/delete/{product_id}", status_code=200, tags=["product"])
-async def delete_product(product_id: int, db: Session = Depends(get_db), username=Depends(auth_handler.auth_wrapper)):
-    # noinspection PyTypeChecker
-    product_model = db.query(ProductModel).filter(ProductModel.product_id == product_id).first()
-    if not product_model:
-        raise HTTPException(status_code=404, detail="Product not found")
-    db.delete(product_model)
-    db.commit()
-    return {"status": "Success", "result": f"Product {product_id} deleted by {username}"}
-
-
 @myapp.post("/register", status_code=200, tags=["user"])
 def register(user: UserRegister, db: Session = Depends(get_db)):
     lowercase_email = user.email.lower()
@@ -130,6 +76,79 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         "status_code": 200,
         "message": "Success",
         "result": result
+    }
+    return JSONResponse(content=response_data, status_code=200)
+
+
+@myapp.post("/product/add", status_code=200, tags=["product"])
+async def create_product(product: ProductCreate, db: Session = Depends(get_db),
+                         username=Depends(auth_handler.auth_wrapper)):
+    product_model = ProductModel(
+        name=product.name,
+        category=product.category,
+        price=product.price,
+        is_active=product.is_active)
+    db.add(product_model)
+    db.commit()
+    db.refresh(product_model)
+    response_data = {
+        "status_code": 200,
+        "message": "Success create",
+        "result": f"Product ID: {product_model.product_id}"
+    }
+    return JSONResponse(content=response_data, status_code=200)
+
+
+@myapp.put("/products/update/{product_id}", status_code=200, tags=["product"])
+async def update_product(product_id: int, product: ProductUpdate, db: Session = Depends(get_db),
+                         username=Depends(auth_handler.auth_wrapper)):
+    # noinspection PyTypeChecker
+    product_model = db.query(ProductModel).filter(ProductModel.product_id == product_id).first()
+    if not product_model:
+        raise HTTPException(status_code=404, detail="Product not found")
+    if product.name:
+        product_model.name = product.name
+    if product.category:
+        product_model.category = product.category
+    if product.price:
+        product_model.price = product.price
+    if product.is_active is not None:
+        product_model.is_active = product.is_active
+    db.commit()
+    db.refresh(product_model)
+    response_data = {
+        "status_code": 200,
+        "message": "Success update",
+        "result": f"Product ID: {product_model.product_id}"
+    }
+    return JSONResponse(content=response_data, status_code=200)
+
+
+@myapp.get("/product/get/{product_id}", status_code=200, tags=["product"])
+async def read_product(product_id: int, db: Session = Depends(get_db), username=Depends(auth_handler.auth_wrapper)):
+    # noinspection PyTypeChecker
+    product_model = db.query(ProductModel).filter(ProductModel.product_id == product_id).first()
+    if not product_model:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return {
+        "status_code": 200,
+        "message": "Success retrieve",
+        "result": product_model
+    }
+
+
+@myapp.delete("/product/delete/{product_id}", status_code=200, tags=["product"])
+async def delete_product(product_id: int, db: Session = Depends(get_db), username=Depends(auth_handler.auth_wrapper)):
+    # noinspection PyTypeChecker
+    product_model = db.query(ProductModel).filter(ProductModel.product_id == product_id).first()
+    if not product_model:
+        raise HTTPException(status_code=404, detail="Product not found")
+    db.delete(product_model)
+    db.commit()
+    response_data = {
+        "status_code": 200,
+        "message": "Success create",
+        "result": f"Product {product_id} deleted by {username}"
     }
     return JSONResponse(content=response_data, status_code=200)
 
