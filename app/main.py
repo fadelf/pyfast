@@ -175,7 +175,7 @@ async def weather(city: str, api_key: str = Header(None)):
 
 @myapp.post("/convert", tags=["dataset"])
 async def convert_csv(file: UploadFile):
-    data_frame = pd.read_csv(file.file)
+    data_frame = pd.read_csv(file.file, encoding="ISO-8859-1")
 
     json_data = json.loads(data_frame.to_json(orient="records"))
 
@@ -230,4 +230,17 @@ async def custom_exception_handler(request, exc):
             "result": exc.result,
         },
         status_code=exc.status_code,
+    )
+
+
+@myapp.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    error_detail = {
+        "status_code": exc.status_code,
+        "message": exc.detail,
+        "result": None
+    }
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=error_detail,
     )
