@@ -124,8 +124,18 @@ async def update_product(product_id: int, product: ProductUpdate, db: Session = 
     return JSONResponse(content=response_data, status_code=200)
 
 
+@myapp.get("/products", status_code=200, tags=["product"])
+async def list_product(db: Session = Depends(get_db), username=Depends(auth_handler.auth_wrapper)):
+    products = db.query(ProductModel).all()
+    return {
+        "status_code": 200,
+        "message": "Success retrieve",
+        "result": products
+    }
+
+
 @myapp.get("/product/get/{product_id}", status_code=200, tags=["product"])
-async def read_product(product_id: int, db: Session = Depends(get_db), username=Depends(auth_handler.auth_wrapper)):
+async def get_product(product_id: int, db: Session = Depends(get_db), username=Depends(auth_handler.auth_wrapper)):
     # noinspection PyTypeChecker
     product_model = db.query(ProductModel).filter(ProductModel.product_id == product_id).first()
     if not product_model:
